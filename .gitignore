@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# credentials and more
+credentials.csv
+RoomID.py
+.DS_Store
