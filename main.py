@@ -22,14 +22,6 @@ from gmailLogin import gmailLogin
 import RoomID
 
 
-
-
-
-#61109393Ap$$ for andy ucsb.edu email
-#Missamerica2! for colin ucsb.edu email
-#Thelong1 for francispyon ucsb.edu email
-
-
 def sleep():
     time.sleep(random.randint(1,2))
 
