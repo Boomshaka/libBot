@@ -131,6 +131,9 @@ dmypy.json
 
 # credentials and more
 credentials.csv
+credentialstwo.csv
+credentialsthree.csv
+configure.py
 RoomID.py
 .DS_Store
 chromedriver
