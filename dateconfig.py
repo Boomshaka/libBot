@@ -15,7 +15,7 @@ class Dates:
     def configure(self):
         self.target_time = datetime.datetime(self.current_date.year, self.current_date.month, 
                                             self.current_date.day, self.target_time, 0)
-        self.date_to_reserve = self.target_time + datetime.timedelta(days = 12)
+        self.date_to_reserve = self.target_time + datetime.timedelta(days = 11)
         self.diff_day = (self.date_to_reserve - self.start_date).days
         
     

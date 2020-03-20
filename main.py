@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 import csv
 from student import Student
 from dateconfig import Dates
+from database import Database
 import configure as cfg
 import datetime
 from datetime import date
@@ -34,12 +35,7 @@ global linkList
 
 # logging.basicConfig(filename = "libbot.log", level = logging.DEBUG, 
 #                     format = '%(created)f:%(funcName)s:%(message)s:%(thread)d')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('{:<28}   :   {:<35}   :   {:<70}'.format('Time logged = %(asctime)s','Function name = %(funcName)s','message= %(message)s'))
-file_handler = logging.FileHandler('libbot.log')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+
 
 
 
@@ -59,18 +55,21 @@ def collect_student_list(diffday):
     if diffday.day%3 == 0:
         with open("credentials.csv", newline='') as credentials_csv:
             reader = csv.DictReader(credentials_csv)
-            for row in reader:
+            for index, row in enumerate(reader):
                 students.append(Student(row['username'],row['password']))
+                students[index].log.info("\n\n\n")
     elif diffday.day%3 == 1:
-        with open("credentialsthree.csv", newline='') as credentials_csv:
+        with open("credentialstwo.csv", newline='') as credentials_csv:
             reader = csv.DictReader(credentials_csv)
-            for row in reader:
+            for index, row in enumerate(reader):
                 students.append(Student(row['username'],row['password']))
+                students[index].log.info("\n\n\n")
     else:
         with open("credentialsthree.csv", newline='') as credentials_csv:
             reader = csv.DictReader(credentials_csv)
-            for row in reader:
+            for index, row in enumerate(reader):
                 students.append(Student(row['username'],row['password']))
+                students[index].log.info("\n\n\n")
     return students
 
 def collect_id_list(targetRoom,dates,len_gmail):
@@ -129,12 +128,12 @@ def room_reserve(student,ID,date_to_reserve,target_time,twelve_AM_id):
         # except ElementNotInteractableException as Exception:
 
         except (NoSuchElementException, ElementNotInteractableException) as Exception: 
-            logger.error("Room not found or already reserved: {}".format(timeslots[x]))
+            student.log.error("Room not found or already reserved: {}".format(timeslots[x]))
             pass
         ID = int(ID)
         ID += 1
         time.sleep(0.25)
-    logger.info("Timeslot for {} is {}-{}".format(student.username, timeslots[0], timeslots[-1]))
+    student.log.info("Timeslot for {} is {}-{}".format(student.username, timeslots[0], timeslots[-1]))
 
     #get to the next screen
     browser.find_element_by_name('Continue').click()
@@ -157,8 +156,8 @@ def room_reserve(student,ID,date_to_reserve,target_time,twelve_AM_id):
         browser.find_element_by_name('Submit').click()
         # print ('Successful confirmation for:', students[k].username)
     except NoSuchElementException as Exception:
-        logger.error("Slot to submit roomname not found for {} at {}-{}, either username/password didn't work or browser too slow".format(student.username, timeslots[0],timeslots[-1]))
-        pass
+        student.log.error("Slot to submit roomname not found for {} at {}-{}, either username/password didn't work or browser too slow".format(student.username, timeslots[0],timeslots[-1]))
+        # pass
 
     
     print (datetime.datetime.now())
@@ -166,11 +165,7 @@ def room_reserve(student,ID,date_to_reserve,target_time,twelve_AM_id):
     browser.close()
     browser.quit()
 
-#Input: instance of Student class
-# class Student:
-#     def _init__(self, username, password):
-#         self.username = username + '@ucsb.edu'
-#         self.password = password
+
 def gmail_login(student):
     M = imaplib.IMAP4_SSL('imap.gmail.com')
     time.sleep(2) #new
@@ -181,14 +176,60 @@ def gmail_login(student):
         M.login(student.email, student.password)
         #print ('Successful confirmation for:', students[k].username)
     except Exception:
-        logger.error('Email login failed with {}, wrong username/password'.format(student.username))
-        pass
+        student.log.error('Email login failed with {}, wrong username/password'.format(student.username))
+        # pass
 
+    return M
+
+
+
+def cancel_booking(student):
+    print("canceling booking for", student.username)
+    M = gmail_login(student)
     M.select('inbox')
-    rv, data = M.search(None, 'ALL')
+    rv, data = M.search(None,'FROM', '"LibCal"')
     mail_ids = data[0]
     id_list = mail_ids.split()
     latest_email_id =id_list[-1]
+    print("EMAIL ID IS: ",latest_email_id)
+    
+    #Access latest email
+    sleep()
+    # msg_data = collect_emails(search_mail('FROM','alerts@mail.libcal.com', M), M)
+    # target_msg=msg_data[0]
+    typ, msg_data = M.fetch(latest_email_id, '(RFC822)')
+    msg = Parser().parsestr(str(msg_data[0][1]))
+    msg=str(msg)
+
+    #Set msg equal to the confirmation link
+    index1 = msg.index('https://libcal.library.ucsb.edu/cancel_booking')
+    msg = msg[index1:index1+145]
+    print(msg)
+    M.close()
+    M.logout()
+
+    browser = setup_browser()
+    browser.get(msg)
+    sleep()
+    browser.find_element_by_id('rm_confirm_link').click()
+    browser.close()
+
+
+
+
+#Input: instance of Student class
+# class Student:
+#     def _init__(self, username, password):
+#         self.username = username + '@ucsb.edu'
+#         self.password = password
+def confirm_room(student):
+    M = gmail_login(student)
+    M.select('inbox')
+    rv, data = M.search(None,'FROM', '"LibCal"')
+    mail_ids = data[0]
+    id_list = mail_ids.split()
+    latest_email_id =id_list[-1]
+    print("EMAIL ID IS: ",latest_email_id)
 
     #Access latest email
     sleep()
@@ -206,11 +247,14 @@ def gmail_login(student):
     M.logout()
 
     #Open up confirmation link and confirm rooms
+    
     browser = setup_browser()
     browser.get(msg)
     sleep()
     browser.find_element_by_id('rm_confirm_link').click()
     browser.close()
+
+    # cancel_booking(student)
 
 def main(target_time, target_room):
     logger.info("main called with target time={} and target room={}".format(target_time,target_room))
@@ -240,25 +284,38 @@ def main(target_time, target_room):
     # print ('total time taken:' , time.time()-start)
     logger.info("total time taken: {}".format(time.time()-start))
 
-    for k in range(len_gmail):
-        linkList = []
+    db = Database()
+    db.create_connection()
 
+    for k in range(len_gmail):
+        linkList = []  
+        id = db.get_student_id(students[k].username)
         try:
-            gmail_login(students[k])
+            confirm_room(students[k])
             # print ('Successful confirmation for:', students[k].username)
             logger.info("Successful confirmation for: {}".format(students[k].username))
+            db.update_stats(id,True)
         except Exception:
             logger.error('an error has occured with the following username, trying next username: {}'.format(students[k].username))
+            db.update_stats(id,False)
             pass
 
+    db.close_connection()
+
 if __name__ == "__main__":
+    formatter = logging.Formatter('{:<28}   :   {:<35}   :   {:<70}'.format('Time logged = %(asctime)s','Function name = %(funcName)s','message= %(message)s'))
+    file_handler = logging.FileHandler('libbot.log')
+    file_handler.setFormatter(formatter)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
     while True:
         #wait for midnight
         while datetime.datetime.now().hour == 0:
             print ('sleeping ... ' , datetime.datetime.now())
             time.sleep(1)
             #start booking at 12pm
-        main(5, 2528)
+        main(5, 2334)
         logger.info("\n\n\n")
         print ('sleeping for one hour...')
         time.sleep(3600)
