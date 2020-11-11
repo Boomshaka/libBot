@@ -1,2 +1,3 @@
 # libBot
-Optimizing booking study rooms at UCSB campus library
+
+A bot that uses Selenium WebDriver to automatically reserve study rooms from the UCSB campus library.
